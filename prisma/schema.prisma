@@ -1,0 +1,238 @@
+mkdir -p prisma
+cat > prisma/schema.prisma << 'EOF'
+// FootballHub / Analyst Studio shared schema.
+// This file is the source of truth for both projects during Phase 1.
+// In Phase 3+, Analyst Studio's Prisma client points at the same DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Football entities ----------
+
+model Competition {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  country   String?
+  logoUrl   String?
+  providerId String? // external football-data API id, when available
+  matches   Match[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  providerId   String?
+  homeMatches  Match[]  @relation("HomeTeam")
+  awayMatches  Match[]  @relation("AwayTeam")
+  players      Player[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Player {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  position   String?
+  teamId     String?
+  team       Team?    @relation(fields: [teamId], references: [id])
+  photoUrl   String?
+  providerId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  UNKNOWN
+}
+
+enum DataSource {
+  FOOTBALL_API
+  YOUTUBE
+  MANUAL
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  homeTeamId    String
+  awayTeamId    String
+  homeTeam      Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam      Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  competitionId String?
+  competition   Competition? @relation(fields: [competitionId], references: [id])
+  slug          String      @unique
+  homeScore     Int?
+  awayScore     Int?
+  status        MatchStatus @default(UNKNOWN)
+  venue         String?
+  kickoffAt     DateTime?
+  source        DataSource
+  providerId    String?     // external football-data match id, if resolved
+  youtubeVideos YoutubeVideo[]
+  analyses      Analysis[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([kickoffAt])
+}
+
+// ---------- YouTube discovery ----------
+
+model YoutubeChannel {
+  id          String   @id @default(cuid())
+  channelId   String   @unique
+  channelName String
+  category    String?
+  enabled     Boolean  @default(true)
+  priority    Int      @default(0)
+  lastCheckedAt DateTime?
+  videos      YoutubeVideo[]
+  createdAt   DateTime @default(now())
+}
+
+enum VideoClassification {
+  MATCH_HIGHLIGHT
+  GOAL_HIGHLIGHT
+  MATCH_REPORT
+  FOOTBALL_NEWS
+  POST_MATCH
+  PRESS_CONFERENCE
+  TACTICAL_ANALYSIS
+  TRANSFER_NEWS
+  PLAYER_CONTENT
+  OTHER
+}
+
+enum ProcessingStatus {
+  DISCOVERED
+  MATCH_IDENTIFIED
+  ANALYZED
+  IGNORED
+}
+
+model YoutubeVideo {
+  id                  String    @id @default(cuid())
+  youtubeVideoId      String    @unique
+  channelId           String?
+  channel             YoutubeChannel? @relation(fields: [channelId], references: [id])
+  channelTitle        String
+  title               String
+  description         String    @db.Text
+  thumbnailUrl        String
+  publishedAt         DateTime
+  durationSeconds      Int?
+  viewCount            BigInt?
+  likeCount            BigInt?
+  commentCount         BigInt?
+  discoveryQuery       String?
+  classification       VideoClassification @default(OTHER)
+  classificationConfidence Float?
+  matchId              String?
+  match                Match?   @relation(fields: [matchId], references: [id])
+  processingStatus     ProcessingStatus @default(DISCOVERED)
+  discoveredAt          DateTime @default(now())
+
+  @@index([publishedAt])
+}
+
+// ---------- Media & rights ----------
+
+enum RightsStatus {
+  UNKNOWN
+  EMBED_ONLY
+  OWNED
+  LICENSED
+  PERMISSION_GRANTED
+  PUBLIC_DOMAIN
+}
+
+model MediaAsset {
+  id                 String   @id @default(cuid())
+  url                String
+  kind               String   // ORIGINAL | PROCESSED | VERTICAL | HORIZONTAL | THUMBNAIL | IMAGE
+  rightsStatus       RightsStatus @default(UNKNOWN)
+  rightsConfirmedBy  String?
+  rightsConfirmedAt  DateTime?
+  publishingAllowed  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+// ---------- Analysis & content ----------
+
+enum EvidenceSource {
+  VIDEO
+  DATA
+  BOTH
+  MANUAL
+}
+
+model Analysis {
+  id          String   @id @default(cuid())
+  matchId     String
+  match       Match    @relation(fields: [matchId], references: [id])
+  version     Int      @default(1)
+  approved    Boolean  @default(false)
+  summary     String   @db.Text
+  narrative   String   @db.Text
+  events      AnalysisEvent[]
+  articles    Article[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AnalysisEvent {
+  id          String   @id @default(cuid())
+  analysisId  String
+  analysis    Analysis @relation(fields: [analysisId], references: [id])
+  timestamp   Int?     // seconds into the match, if known
+  eventType   String
+  team        String?
+  player      String?
+  description String
+  confidence  Float?
+  evidenceSource EvidenceSource @default(MANUAL)
+}
+
+model Article {
+  id           String   @id @default(cuid())
+  analysisId   String
+  analysis     Analysis @relation(fields: [analysisId], references: [id])
+  slug         String   @unique
+  title        String
+  summary      String
+  bodyMdx      String   @db.Text
+  seoTitle     String?
+  seoDescription String?
+  published    Boolean  @default(false)
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------- Audit ----------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  objectType String
+  objectId   String
+  result     String
+  createdAt  DateTime @default(now())
+}
+EOF
