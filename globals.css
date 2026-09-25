@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-base text-text font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid theme("colors.accentBright");
+    outline-offset: 2px;
+  }
+}
