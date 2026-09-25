@@ -1,0 +1,40 @@
+cat > footballhub-analyst-studio/.env.example << 'EOF'
+NODE_ENV=development
+
+APP_URL=http://localhost:3001
+ANALYST_STUDIO_URL=http://localhost:3001
+FOOTBALLHUB_BASE_URL=http://localhost:3000
+
+# Same Postgres instance FootballHub reads from.
+DATABASE_URL=postgresql://user:password@localhost:5432/footballhub
+
+# Shared secret for signing requests to FootballHub's publish endpoint (Phase 4).
+FOOTBALLHUB_STUDIO_WEBHOOK_SECRET=
+
+# --- YouTube Data API (Phase 2) ---
+YOUTUBE_API_KEY=
+YOUTUBE_API_BASE_URL=https://www.googleapis.com/youtube/v3
+
+# --- YouTube OAuth (Phase 5, not used yet) ---
+YOUTUBE_CLIENT_ID=
+YOUTUBE_CLIENT_SECRET=
+YOUTUBE_REDIRECT_URI=http://localhost:3001/api/oauth/youtube/callback
+
+# --- football-data provider (optional secondary source) ---
+FOOTBALL_API_KEY=
+FOOTBALL_API_BASE_URL=
+
+# --- AI provider (Phase 3, not used yet) ---
+AI_API_KEY=
+
+# --- Admin auth (Phase 2 minimal auth — replace with a real provider before
+#     production; see src/lib/auth.ts) ---
+ADMIN_EMAIL=admin@footballhub.example
+ADMIN_PASSWORD_HASH=
+SESSION_SECRET=
+
+# --- Background job protection ---
+# Random token required in the Authorization header when triggering
+# /api/jobs/poll-channels from an external scheduler (cron, Vercel Cron, etc).
+JOBS_SECRET=
+EOF
