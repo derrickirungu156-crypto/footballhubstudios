@@ -48,7 +48,7 @@ export function YouTubeCard({ video }: { video: DiscoveredVideo }) {
         )}
 
         <div className="mt-3 flex gap-2">
-          
+          <a
             href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`}
             target="_blank"
             rel="noreferrer"

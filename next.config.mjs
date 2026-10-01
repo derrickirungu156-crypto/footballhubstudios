@@ -1,7 +1,7 @@
-cat > footballhub-analyst-studio/next.config.mjs << 'EOF'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "i.ytimg.com" },
@@ -24,4 +24,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-EOF

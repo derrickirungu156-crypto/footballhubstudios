@@ -1,5 +1,3 @@
-mkdir -p prisma
-cat > prisma/schema.prisma << 'EOF'
 // FootballHub / Analyst Studio shared schema.
 // This file is the source of truth for both projects during Phase 1.
 // In Phase 3+, Analyst Studio's Prisma client points at the same DATABASE_URL.
@@ -235,4 +233,3 @@ model AuditLog {
   result     String
   createdAt  DateTime @default(now())
 }
-EOF

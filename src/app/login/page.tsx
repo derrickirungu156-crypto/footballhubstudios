@@ -1,11 +1,25 @@
 import { redirect } from "next/navigation";
 import { verifyCredentials, createSession } from "@/lib/auth";
 
+function safeReturnPath(value: string | undefined): string {
+  if (!value?.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+    return "/admin";
+  }
+
+  try {
+    const target = new URL(value, "https://studio.invalid");
+    if (target.origin !== "https://studio.invalid") return "/admin";
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "/admin";
+  }
+}
+
 async function login(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const from = String(formData.get("from") ?? "/admin");
+  const from = safeReturnPath(String(formData.get("from") ?? ""));
 
   if (!verifyCredentials(email, password)) {
     redirect(`/login?error=1&from=${encodeURIComponent(from)}`);
@@ -21,7 +35,7 @@ export default async function LoginPage({
   searchParams: Promise<{ from?: string; error?: string }>;
 }) {
   const params = await searchParams;
-  const from = params.from ?? "/admin";
+  const from = safeReturnPath(params.from);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base px-4">

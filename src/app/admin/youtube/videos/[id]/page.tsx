@@ -1,13 +1,23 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { identifyMatchFromText } from "@/lib/classification";
+import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 async function confirmMatch(formData: FormData) {
   "use server";
+  const session = await getSession();
+  if (!session) return;
+
   const videoId = String(formData.get("videoId"));
   const homeTeamSlug = String(formData.get("homeTeamSlug"));
   const awayTeamSlug = String(formData.get("awayTeamSlug"));
+  const matchDate = String(formData.get("matchDate"));
+
+  if (homeTeamSlug === awayTeamSlug || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return;
+
+  const kickoffAt = new Date(`${matchDate}T00:00:00.000Z`);
+  if (Number.isNaN(kickoffAt.getTime()) || kickoffAt.toISOString().slice(0, 10) !== matchDate) return;
 
   const [homeTeam, awayTeam] = await Promise.all([
     prisma.team.findUnique({ where: { slug: homeTeamSlug } }),
@@ -18,7 +28,7 @@ async function confirmMatch(formData: FormData) {
   const video = await prisma.youtubeVideo.findUnique({ where: { id: videoId } });
   if (!video) return;
 
-  const slug = `${homeTeam.slug}-vs-${awayTeam.slug}-${video.publishedAt.toISOString().slice(0, 10)}`;
+  const slug = `${homeTeam.slug}-vs-${awayTeam.slug}-${matchDate}`;
 
   const match = await prisma.match.upsert({
     where: { slug },
@@ -27,9 +37,9 @@ async function confirmMatch(formData: FormData) {
       slug,
       homeTeamId: homeTeam.id,
       awayTeamId: awayTeam.id,
-      status: "FINISHED",
-      source: "YOUTUBE",
-      kickoffAt: video.publishedAt
+      status: "UNKNOWN",
+      source: "MANUAL",
+      kickoffAt
     }
   });
 
@@ -40,7 +50,7 @@ async function confirmMatch(formData: FormData) {
 
   await prisma.auditLog.create({
     data: {
-      actor: "admin",
+      actor: session.email,
       action: "MATCH_CONFIRMED",
       objectType: "YoutubeVideo",
       objectId: videoId,
@@ -103,6 +113,10 @@ export default async function VideoWorkspacePage({
             <form action={confirmMatch} className="mt-4 flex flex-wrap items-end gap-3">
               <input type="hidden" name="videoId" value={video.id} />
 
+              <p className="basis-full text-xs text-subtext">
+                The YouTube upload date is not treated as the match date. Enter the verified fixture date.
+              </p>
+
               <label className="text-xs text-subtext">
                 Home team
                 <select
@@ -129,6 +143,16 @@ export default async function VideoWorkspacePage({
                     <option key={t.slug} value={t.slug}>{t.name}</option>
                   ))}
                 </select>
+              </label>
+
+              <label className="text-xs text-subtext">
+                Match date
+                <input
+                  name="matchDate"
+                  type="date"
+                  required
+                  className="mt-1 block border border-border bg-base px-2 py-1.5 text-sm text-text"
+                />
               </label>
 
               <button

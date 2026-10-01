@@ -91,8 +91,8 @@ own search) — this hits the real YouTube Data API and stores results, so
 - **Phase 8–9** — analytics, security hardening, deployment.
 - `/admin/matches`, `/admin/analysis`, `/admin/media`, `/admin/content`,
   `/admin/publishing`, `/admin/analytics`, `/admin/integrations`,
-  `/admin/settings` are linked from the sidebar but not built yet —
-  visiting them 404s until later phases.
+  `/admin/settings` currently resolve to clearly labeled placeholders;
+  their workflows are not implemented and no data or integration status is simulated.
 
 ## Next step
 

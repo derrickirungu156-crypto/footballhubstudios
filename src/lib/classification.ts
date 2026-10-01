@@ -64,11 +64,14 @@ export async function identifyMatchFromText(title: string, description: string):
   // Prefer the "X vs Y" / "X v Y" pattern to get home/away order right.
   const vsMatch = /([a-z\s]+?)\s+(?:vs\.?|v)\s+([a-z\s]+?)(?:\s|:|\||$)/i.exec(title);
   if (vsMatch) {
-    const [, left, right] = vsMatch;
-    const home = teams.find((t) => left.toLowerCase().includes(t.name.toLowerCase()));
-    const away = teams.find((t) => right.toLowerCase().includes(t.name.toLowerCase()));
-    if (home && away && home.slug !== away.slug) {
-      return { homeTeamSlug: home.slug, awayTeamSlug: away.slug, confidence: 0.85 };
+    const left = vsMatch[1];
+    const right = vsMatch[2];
+    if (left && right) {
+      const home = teams.find((t) => left.toLowerCase().includes(t.name.toLowerCase()));
+      const away = teams.find((t) => right.toLowerCase().includes(t.name.toLowerCase()));
+      if (home && away && home.slug !== away.slug) {
+        return { homeTeamSlug: home.slug, awayTeamSlug: away.slug, confidence: 0.85 };
+      }
     }
   }
 
